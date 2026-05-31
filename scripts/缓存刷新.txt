@@ -1,0 +1,2 @@
+每次上传网站的时候，在根目录运行一下代码。
+node scripts/bump-release-version.js

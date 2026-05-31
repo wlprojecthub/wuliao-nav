@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>无聊的导航 - ACGN、AI 与实用工具导航页</title>
+    <meta name="description" content="一个收集 ACGN、AI 与实用工具的个人导航页">
+    <meta name="keywords" content="导航, ACGN, AI工具, 实用工具, 资源导航">
+    <meta name="theme-color" content="#ff9a9e">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="icon" href="assets/img/default-icon.png">
+    <link rel="apple-touch-icon" href="assets/img/default-icon.png">
+    <link rel="stylesheet" href="assets/css/style.css?v=d8b2245f012b">
+</head>
+<body>
+    <!-- 侧边栏 -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-logo">
+            <span class="logo-orbit" aria-hidden="true">
+                <span class="logo-orbit-core">✦</span>
+            </span>
+            <a href="index.html" class="logo-text">无聊的导航</a>
+            <p class="logo-desc">ACGN · AI · 工具</p>
+            <span class="logo-edition">STARDUST EDITION</span>
+        </div>
+        <nav class="sidebar-nav" id="sidebarNav">
+            <!-- 由 JS 动态生成 -->
+        </nav>
+    </aside>
+
+    <!-- 移动端侧边栏遮罩 -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+        <!-- 顶部导航栏 -->
+        <nav class="topbar">
+            <button class="sidebar-toggle" id="sidebarToggle" aria-label="切换菜单">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h18M3 6h18M3 18h18"></path></svg>
+            </button>
+            <div class="search-box">
+                <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
+                <input type="text" id="searchInput" placeholder="搜索网站名称、描述或标签..." autocomplete="off" aria-label="搜索网站">
+            </div>
+            <div class="topbar-meta" aria-label="网站状态">
+                <span class="topbar-spark" aria-hidden="true">✦</span>
+                <span>星愿收藏夹</span>
+            </div>
+        </nav>
+
+        <!-- 网站内容区 -->
+        <main class="sites-content" id="mainContent">
+            <!-- 由 JS 动态生成 -->
+        </main>
+    </div>
+
+    <!-- 回到顶部 -->
+    <button class="back-to-top" id="backToTop" aria-label="回到顶部">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m18 15-6-6-6 6"></path></svg>
+    </button>
+
+    <script src="assets/js/data.js?v=865f05ea2f94"></script>
+    <script src="assets/js/main.js?v=4d23f4e10bed"></script>
+</body>
+</html>
