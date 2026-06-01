@@ -1,6 +1,6 @@
 # 无聊的导航 - Code Wiki
 
-> 本文档对应 `2026.05.31.5` 版本，记录项目当前架构、模块职责、数据结构、图标机制、运行部署方式和维护规则。
+> 本文档对应 `v1.0.1` 待发布版本，记录项目当前架构、模块职责、数据结构、图标机制、运行部署方式和维护规则。
 
 ---
 
@@ -51,9 +51,9 @@
 
 **当前数据规模**：
 
-- 网站总数：996 个
+- 网站总数：995 个
 - 分类数量：12 个
-- 本地 Favicon：950 个可发布文件，共 11.24 MB
+- 本地 Favicon：949 个可发布文件，共 11.27 MB
 
 ---
 
@@ -84,8 +84,8 @@ wuliao-nav/
 │   │   ├── data.js             # 分类、二级分类规则和网站数据（1123 行）
 │   │   └── main.js             # 渲染、搜索和交互逻辑（477 行）
 │   └── img/
-│       ├── favicons/           # 本地图标（950 个可发布文件，11.24 MB）
-│       └── default-icon.png    # 页面图标和无效 URL 兜底图标
+│       ├── favicons/           # 本地图标（949 个可发布文件，11.27 MB）
+│       └── default-icon.png    # 品牌四角星页面图标和无效 URL 兜底图标
 ├── scripts/
 │   ├── bump-release-version.js # 发布前刷新静态资源内容哈希
 │   └── 缓存刷新.txt            # 发布脚本简要说明
@@ -102,11 +102,11 @@ wuliao-nav/
 |------|------|------|
 | `index.html` | 67 | 页面结构、DOM 容器、资源引入 |
 | `404.html` | 71 | Stardust 风格错误页、返回导航和快捷入口 |
-| `assets/js/data.js` | 1123 | `CATEGORIES`、`SUBCATEGORIES` 和 `SITES_DATA` |
-| `assets/js/main.js` | 477 | 初始化、导语面板、二级分组、树形侧边栏、排序、搜索和事件绑定 |
+| `assets/js/data.js` | 1121 | `CATEGORIES`、`SUBCATEGORIES` 和 `SITES_DATA` |
+| `assets/js/main.js` | 509 | 初始化、导语面板、二级分组、树形侧边栏、排序、搜索和事件绑定 |
 | `assets/css/style.css` | 1958 | 主题、布局、卡片、树形侧边栏、二级导航、404 页面、动画和响应式样式 |
-| `scripts/bump-release-version.js` | 43 | 为 CSS、数据和脚本生成内容哈希，并同步更新两个 HTML 入口 |
-| `deploy/nginx-cache.conf` | 18 | HTML 重新验证和带哈希静态资源长期缓存规则 |
+| `scripts/bump-release-version.js` | 69 | 为 CSS、数据、品牌默认图标和脚本生成内容哈希，并同步更新脚本兜底路径与两个 HTML 入口 |
+| `deploy/nginx-cache.conf` | 29 | HTML 重新验证、带哈希代码长期缓存和图片短期缓存规则 |
 
 ---
 
@@ -181,8 +181,8 @@ renderSites(sites)
 资源加载顺序：
 
 ```html
-<link rel="icon" href="assets/img/default-icon.png">
-<link rel="apple-touch-icon" href="assets/img/default-icon.png">
+<link rel="icon" href="assets/img/default-icon.png?v=<内容哈希>">
+<link rel="apple-touch-icon" href="assets/img/default-icon.png?v=<内容哈希>">
 <link rel="stylesheet" href="assets/css/style.css">
 <script src="assets/js/data.js"></script>
 <script src="assets/js/main.js"></script>
@@ -198,7 +198,7 @@ renderSites(sites)
 |------|------|------|
 | `CATEGORIES` | `Array<Category>` | 12 个分类的顺序、名称和 Emoji 图标 |
 | `SUBCATEGORIES` | `Record<string, Array<Subcategory>>` | 各一级分类下的二级分类规则 |
-| `SITES_DATA` | `Array<Site>` | 996 个网站的数据记录 |
+| `SITES_DATA` | `Array<Site>` | 995 个网站的数据记录 |
 
 数据通过普通 `<script>` 标签同步加载，无模块化依赖。
 
@@ -244,51 +244,59 @@ renderSites(sites)
 
 ### 6.1 安全处理
 
-#### `escapeHtml(str)` - 第 17 行
+#### `escapeHtml(str)` - 第 44 行
 
 将动态文本中的 `&`、`<`、`>`、`"` 和 `'` 转义，避免文本被解释为 HTML。
 
 用于网站名称、描述和风险提示。
 
-#### `sanitizeUrl(url)` - 第 30 行
+#### `sanitizeUrl(url)` - 第 57 行
 
 使用 `new URL(url)` 解析链接，仅允许 `http:` 和 `https:` 协议。无效 URL 或其他协议会降级为 `#`。
 
+#### `safeIdentifier(value)` - 第 70 行
+
+仅允许动态 DOM 标识符使用字母、数字和连字符，避免分类或二级分类 ID 进入属性和内联调用时改变 HTML 结构。
+
+#### `getScrollBehavior()` / `exitSearch()` - 第 74、78 行
+
+统一处理减少动态效果偏好下的滚动方式，并在分类导航前清空搜索框、搜索状态和待执行的防抖任务。
+
 ### 6.2 初始化与渲染
 
-#### `init()` - 第 69 行
+#### `init()` - 第 88 行
 
 依次调用 `renderSidebar()`、`renderSites()` 和 `bindEvents()`。
 
-#### `renderSidebar()` - 第 75 行
+#### `renderSidebar()` - 第 94 行
 
 统计每个分类的网站数量，渲染“全部”和 12 个分类导航项。
 
-#### `renderSites(sites)` - 第 125 行
+#### `renderSites(sites)` - 第 150 行
 
 按分类对网站分组，并按照 `CATEGORIES` 的定义顺序渲染分类区块。没有匹配结果时显示空状态。
 
-#### `sortSites(sites)` - 第 183 行
+#### `sortSites(sites)` - 第 216 行
 
 复制网站数组后排序：编辑推荐网站优先，普通网站居中，带 `risk` 的访问提示网站置底；同一优先级按照网站在 `SITES_DATA` 中的人工维护顺序展示。
 
-#### `getSiteSortPriority(site)` - 第 191 行
+#### `getSiteSortPriority(site)` - 第 224 行
 
 返回网站排序权重：推荐为 `0`、普通为 `1`、带风险提示的网站为 `2`。如果网站同时标记推荐和风险提示，以风险提示为准并排在末尾。
 
-#### `isSiteHighlighted(site)` - 第 197 行
+#### `isSiteHighlighted(site)` - 第 230 行
 
 合并数据记录中的 `highlight` 标记和 `EDITOR_RECOMMENDED_SITES` 编辑精选名单，用于控制推荐徽章和排序优先级。
 
-#### `groupSitesBySubcategory(categoryId, sites)` - 第 201 行
+#### `groupSitesBySubcategory(categoryId, sites)` - 第 234 行
 
 按照 `SUBCATEGORIES` 的定义顺序生成二级分组，仅渲染包含网站的分组。
 
-#### `getSubcategory(categoryId, site)` - 第 218 行
+#### `getSubcategory(categoryId, site)` - 第 251 行
 
 将网站名称、描述和标签合并为可检索文本，按顺序匹配二级分类关键词。没有匹配项时进入该一级分类的 fallback 分组。
 
-#### `createSiteCard(site)` - 第 263 行
+#### `createSiteCard(site)` - 第 296 行
 
 生成单个网站卡片 HTML：
 
@@ -298,13 +306,13 @@ renderSites(sites)
 - `risk` 与推荐徽章互斥显示，`risk` 优先
 - 使用本地图标，加载失败时显示网站名称首字母
 
-#### `createHero(resultCount)` - 第 234 行
+#### `createHero(resultCount)` - 第 267 行
 
 生成页面顶部的星愿导语面板。默认状态展示导航站定位；搜索状态展示关键词和匹配结果数量。
 
 ### 6.3 本地图标
 
-#### `getFaviconUrl(url)` - 第 293 行
+#### `getFaviconUrl(url)` - 第 329 行
 
 使用 `new URL(url).hostname` 提取域名，并生成本地图标地址：
 
@@ -320,21 +328,21 @@ assets/img/favicons/${domain}.png
 
 本地图标不存在或加载失败
   └── img.onerror
-      ├── 隐藏图片
-      └── 显示网站名称首字母
+      ├── 切换到品牌四角星默认图标
+      └── 默认图标仍失败时显示网站名称首字母
 
 URL 无法解析
-  └── 使用 assets/img/default-icon.png
+  └── 使用 assets/img/default-icon.png?v=<内容哈希>
 
 已确认没有有效本地图标
-  └── 使用 assets/img/default-icon.png
+  └── 使用 assets/img/default-icon.png?v=<内容哈希>
 ```
 
-当前实现不依赖 Google Favicon API。
+缺失或不可用的网站图标将使用与站点品牌一致的四角星默认图标兜底。当前实现不依赖 Google Favicon API。
 
 ### 6.4 搜索
 
-#### `handleSearch()` - 第 305 行
+#### `handleSearch()` - 第 341 行
 
 搜索规则：
 
@@ -348,7 +356,7 @@ URL 无法解析
 
 搜索输入使用 300ms 防抖。
 
-#### `highlightText(text, keyword)` - 第 329 行
+#### `highlightText(text, keyword)` - 第 365 行
 
 将搜索关键词按空格拆分、去重并按长度降序排列，再将结果中逐词匹配的文字包裹为：
 
@@ -356,40 +364,40 @@ URL 无法解析
 <span class="search-highlight">匹配文字</span>
 ```
 
-#### `escapeRegExp(string)` - 第 338 行
+#### `escapeRegExp(string)` - 第 374 行
 
 转义搜索关键词中的正则表达式特殊字符，避免关键词改变正则语义。
 
 ### 6.5 导航与移动端
 
-#### `scrollToCategory(categoryId)` - 第 342 行
+#### `scrollToCategory(categoryId)` - 第 378 行
 
 - 搜索状态下先清空搜索并恢复全部卡片
 - 更新侧边栏激活状态
-- 平滑滚动到目标分类
+- 按系统减少动态效果偏好滚动到目标分类
 - 在移动端关闭侧边栏
 
-#### `toggleCategory(categoryId)` - 第 366 行
+#### `toggleCategory(categoryId)` - 第 397 行
 
-展开或收起一级分类下的二级菜单，并平滑滚动到该一级分类内容。
+清空搜索状态，展开或收起一级分类下的二级菜单，并按系统减少动态效果偏好滚动到该一级分类内容。
 
-#### `scrollToSubcategory(event, categoryId, subcategoryId)` - 第 377 行
+#### `scrollToSubcategory(event, categoryId, subcategoryId)` - 第 409 行
 
-激活二级分类菜单，平滑滚动到对应内容，并在移动端关闭侧边栏。
+清空搜索状态，激活二级分类菜单，按系统减少动态效果偏好滚动到对应内容，并在移动端关闭侧边栏。
 
-#### `updateSidebarTree(activeSubcategory)` - 第 378 行
+#### `updateSidebarTree(activeSubcategory)` - 第 422 行
 
 统一更新一级分类激活状态、二级菜单展开状态和二级分类激活状态，并同步维护一级分类按钮的 `aria-expanded` 与二级菜单的 `aria-hidden` 属性。
 
-#### `openSidebar()` / `closeSidebar()` - 第 406、412 行
+#### `openSidebar()` / `closeSidebar()` - 第 439、446 行
 
-控制移动端侧边栏、遮罩层和页面滚动锁定。
+控制移动端侧边栏、遮罩层和页面滚动锁定，并同步维护菜单按钮的 `aria-expanded`。
 
-#### `bindEvents()` - 第 418 行
+#### `bindEvents()` - 第 453 行
 
 绑定搜索输入、侧边栏、遮罩、回到顶部、滚动和 ESC 键事件。
 
-#### `updateActiveNavOnScroll()` - 第 455 行
+#### `updateActiveNavOnScroll()` - 第 489 行
 
 根据当前滚动位置更新侧边栏激活分类。滚动监听通过 `requestAnimationFrame` 节流。
 
@@ -412,7 +420,7 @@ interface Category {
 | ID | 名称 | 图标 | 网站数量 |
 |----|------|------|----------|
 | `recommend` | 常用推荐 | ⭐ | 27 |
-| `ai` | AI 工具 | 🤖 | 158 |
+| `ai` | AI 工具 | 🤖 | 157 |
 | `dev` | 开发编程 | 💻 | 205 |
 | `design` | 设计创作 | 🎨 | 62 |
 | `anime` | 动漫游戏 | 🎮 | 66 |
@@ -423,7 +431,7 @@ interface Category {
 | `cloud` | 云服务 | ☁️ | 68 |
 | `software` | 软件资源 | 📦 | 66 |
 | `tools` | 实用工具 | 🔧 | 93 |
-| **总计** | | | **996** |
+| **总计** | | | **995** |
 
 ### 7.2 网站数据 `SITES_DATA`
 
@@ -577,7 +585,9 @@ node scripts/bump-release-version.js
 ```
 
 然后将 `deploy/nginx-cache.conf` 中的缓存规则合并到站点 `server` 配置块。HTML
-入口应重新验证，带内容哈希的静态资源可以长期缓存。
+入口应重新验证，带内容哈希的 CSS、JavaScript 和品牌默认图标可以及时刷新并长期缓存。
+其他图片使用稳定文件名，因此 `/assets/img/` 使用 7 天可重新验证缓存，避免 favicon 更新后
+长期停留在旧版本。
 
 ```nginx
 server {
@@ -595,9 +605,19 @@ server {
         internal;
     }
 
-    location ~* \.(css|js|png|jpg|jpeg|gif|ico|svg)$ {
+    location /assets/css/ {
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    location /assets/js/ {
+        expires 1y;
+        add_header Cache-Control "public, max-age=31536000, immutable";
+    }
+
+    location /assets/img/ {
         expires 7d;
-        add_header Cache-Control "public, immutable";
+        add_header Cache-Control "public, max-age=604800, must-revalidate";
     }
 }
 ```
@@ -610,6 +630,12 @@ server {
 - Vercel
 - Netlify
 - GitHub Pages
+
+`404.html` 默认按站点根目录部署，使用 `/assets/...`、`/` 和 `/#category-...` 根路径，
+以保证 `/abc/test/123` 等多级错误路径下资源仍可正确加载。如果部署到 GitHub Pages
+项目路径（例如 `/wuliao-nav/`），应在部署版本中将 `404.html` 的资源路径、首页链接和
+快捷入口统一加上 `/wuliao-nav/` 基础路径，并配置项目级 404。不能机械改为相对路径，
+否则多级错误路径会再次解析到错误目录。
 
 ---
 
@@ -683,7 +709,8 @@ URL:      https://www.google.com
 图标文件: assets/img/favicons/www.google.com.png
 ```
 
-未提供图标不会阻止网站显示，页面会自动显示网站名称首字母。
+缺失或不可用的网站图标将使用与站点品牌一致的四角星默认图标兜底；卡片图标请求失败时
+仍会显示网站名称首字母，避免阻止网站显示。
 
 ### 11.6 数据校验规则
 
@@ -705,9 +732,9 @@ URL:      https://www.google.com
 |------|------|
 | **纯静态数据** | 所有网站硬编码在 `data.js` 中，不支持后台管理 |
 | **无构建工具** | 不提供模块化打包、压缩和 Tree Shaking |
-| **搜索为全量匹配** | 每次搜索遍历 996 条网站数据，当前规模可接受 |
+| **搜索为全量匹配** | 每次搜索遍历 995 条网站数据，当前规模可接受 |
 | **图标需手动维护** | 新增网站后应补充对应 hostname 的 PNG 图标 |
-| **图标并非全部覆盖** | 当前 996 个网站包含 961 个唯一域名，其中 944 个已有本地图标，剩余 17 个使用首字母兜底 |
+| **图标并非全部覆盖** | 当前 995 个网站包含 960 个唯一域名，其中 943 个已有本地图标，剩余 17 个使用首字母兜底 |
 | **无深色模式** | 当前仅提供浅色 ACG 粉色主题 |
 | **无国际化** | 界面和大部分描述使用中文 |
 | **Emoji 兼容性** | 分类 Emoji 在不同系统上的显示效果可能略有差异 |

@@ -13,6 +13,7 @@ const backToTop = document.getElementById('backToTop');
 let activeCategory = 'all';
 let currentSearch = '';
 let expandedCategory = null;
+let searchTimer;
 
 // 编辑精选用于突出各分类内更常用、稳定且有代表性的站点。
 // 数据表中的原始位置同时作为完整的人工质量排序，覆盖未单独精选的站点。
@@ -58,11 +59,29 @@ function sanitizeUrl(url) {
     try {
         const parsed = new URL(url);
         if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-            return url;
+            return parsed.href;
         }
         return '#';
     } catch (e) {
         return '#';
+    }
+}
+
+function safeIdentifier(value) {
+    return typeof value === 'string' && /^[a-z0-9-]+$/i.test(value) ? value : '';
+}
+
+function getScrollBehavior() {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+}
+
+function exitSearch() {
+    clearTimeout(searchTimer);
+    const hadSearch = Boolean(currentSearch || searchInput.value);
+    searchInput.value = '';
+    currentSearch = '';
+    if (hadSearch) {
+        renderSites();
     }
 }
 
@@ -86,24 +105,30 @@ function renderSidebar() {
     </button>`;
 
     CATEGORIES.forEach(category => {
-        const count = categoryCounts[category.id] || 0;
-        const subcategoryCounts = getSubcategoryCounts(category.id);
-        const subcategoryItems = (SUBCATEGORIES[category.id] || [])
+        const categoryId = safeIdentifier(category.id);
+        if (!categoryId) return;
+        const count = categoryCounts[categoryId] || 0;
+        const subcategoryCounts = getSubcategoryCounts(categoryId);
+        const subcategoryItems = (SUBCATEGORIES[categoryId] || [])
             .filter(subcategory => subcategoryCounts[subcategory.id])
-            .map(subcategory => `<a class="sidebar-subitem" data-subcategory="${category.id}-${subcategory.id}" href="#subcategory-${category.id}-${subcategory.id}" onclick="scrollToSubcategory(event, '${category.id}', '${subcategory.id}')">
+            .map(subcategory => {
+                const subcategoryId = safeIdentifier(subcategory.id);
+                if (!subcategoryId) return '';
+                return `<a class="sidebar-subitem" data-subcategory="${categoryId}-${subcategoryId}" href="#subcategory-${categoryId}-${subcategoryId}" onclick="scrollToSubcategory(event, '${categoryId}', '${subcategoryId}')">
                 <span class="sidebar-subitem-dot"></span>
                 <span class="sidebar-subitem-name">${escapeHtml(subcategory.name)}</span>
-                <span class="sidebar-subitem-count">${subcategoryCounts[subcategory.id]}</span>
-            </a>`).join('');
+                <span class="sidebar-subitem-count">${subcategoryCounts[subcategoryId]}</span>
+            </a>`;
+            }).join('');
 
-        html += `<div class="nav-group" data-category-group="${category.id}">
-            <button type="button" class="nav-item" data-category="${category.id}" aria-expanded="false" aria-controls="sidebar-subnav-${category.id}" onclick="toggleCategory('${category.id}')">
-                <span class="nav-icon">${category.icon}</span>
-                <span class="nav-name">${category.name}</span>
+        html += `<div class="nav-group" data-category-group="${categoryId}">
+            <button type="button" class="nav-item" data-category="${categoryId}" aria-expanded="false" aria-controls="sidebar-subnav-${categoryId}" onclick="toggleCategory('${categoryId}')">
+                <span class="nav-icon">${escapeHtml(category.icon)}</span>
+                <span class="nav-name">${escapeHtml(category.name)}</span>
                 <span class="nav-count">${count}</span>
                 <span class="nav-caret">›</span>
             </button>
-            <div class="sidebar-subnav" id="sidebar-subnav-${category.id}" aria-hidden="true">${subcategoryItems}</div>
+            <div class="sidebar-subnav" id="sidebar-subnav-${categoryId}" aria-hidden="true">${subcategoryItems}</div>
         </div>`;
     });
 
@@ -142,25 +167,33 @@ function renderSites(sites = SITES_DATA) {
 
     let html = createHero(sites.length);
     CATEGORIES.forEach(category => {
-        const categorySites = sortSites(groupedSites[category.id] || []);
+        const categoryId = safeIdentifier(category.id);
+        if (!categoryId) return;
+        const categorySites = sortSites(groupedSites[categoryId] || []);
         if (!categorySites || categorySites.length === 0) return;
-        const subcategoryGroups = groupSitesBySubcategory(category.id, categorySites);
+        const subcategoryGroups = groupSitesBySubcategory(categoryId, categorySites);
 
-        html += `<section class="category-section" id="category-${category.id}">
+        html += `<section class="category-section" id="category-${categoryId}">
             <div class="category-header">
-                <span class="category-icon">${category.icon}</span>
-                <h2 class="category-title">${category.name}</h2>
+                <span class="category-icon">${escapeHtml(category.icon)}</span>
+                <h2 class="category-title">${escapeHtml(category.name)}</h2>
                 <span class="category-count">${categorySites.length} 个网站</span>
             </div>
             <div class="subcategory-nav">
-                ${subcategoryGroups.map(group => `<a class="subcategory-chip" href="#subcategory-${category.id}-${group.id}" onclick="scrollToSubcategory(event, '${category.id}', '${group.id}')">
+                ${subcategoryGroups.map(group => {
+                    const groupId = safeIdentifier(group.id);
+                    if (!groupId) return '';
+                    return `<a class="subcategory-chip" href="#subcategory-${categoryId}-${groupId}" onclick="scrollToSubcategory(event, '${categoryId}', '${groupId}')">
                     <span>${escapeHtml(group.name)}</span>
                     <small>${group.sites.length}</small>
-                </a>`).join('')}
+                </a>`;
+                }).join('')}
             </div>`;
 
         subcategoryGroups.forEach(group => {
-            html += `<section class="subcategory-section" id="subcategory-${category.id}-${group.id}">
+            const groupId = safeIdentifier(group.id);
+            if (!groupId) return;
+            html += `<section class="subcategory-section" id="subcategory-${categoryId}-${groupId}">
                 <div class="subcategory-header">
                     <h3>${escapeHtml(group.name)}</h3>
                     <span>${group.sites.length}</span>
@@ -265,7 +298,7 @@ function createSiteCard(site) {
     const faviconUrl = getFaviconUrl(site.url);
     const safeName = escapeHtml(site.name);
     const safeDesc = escapeHtml(site.description);
-    const firstChar = safeName.charAt(0).toUpperCase();
+    const firstChar = escapeHtml(site.name.charAt(0).toUpperCase());
     const isHighlighted = isSiteHighlighted(site);
 
     let cardClass = 'site-card';
@@ -281,10 +314,10 @@ function createSiteCard(site) {
     const highlightedName = highlightText(safeName, currentSearch);
     const highlightedDesc = highlightText(safeDesc, currentSearch);
 
-    return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer" class="${cardClass}">
+    return `<a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener noreferrer" class="${cardClass}">
         ${riskTag}
         ${highlightBadge}
-        <img class="card-icon" src="${faviconUrl}" alt="${safeName}" loading="lazy" decoding="async" onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+        <img class="card-icon" src="${escapeHtml(faviconUrl)}" alt="${safeName}" loading="lazy" decoding="async" onerror="if (!this.dataset.defaultFallback) { this.dataset.defaultFallback='true'; this.src='assets/img/default-icon.png?v=608d62088fc4'; } else { this.style.display='none';this.nextElementSibling.style.display='flex'; }">
         <div class="card-icon-fallback" style="display:none">${firstChar}</div>
         <div class="card-info">
             <div class="card-name">${highlightedName}</div>
@@ -297,11 +330,11 @@ function getFaviconUrl(url) {
     try {
         const domain = new URL(url).hostname;
         if (domain === 'cloud.hosthatch.com') {
-            return 'assets/img/default-icon.png';
+            return 'assets/img/default-icon.png?v=608d62088fc4';
         }
         return `assets/img/favicons/${domain}.png`;
     } catch (e) {
-        return 'assets/img/default-icon.png';
+        return 'assets/img/default-icon.png?v=608d62088fc4';
     }
 }
 
@@ -343,23 +376,18 @@ function escapeRegExp(string) {
 }
 
 function scrollToCategory(categoryId) {
-    // 搜索状态下点击分类，先清空搜索
-    if (currentSearch) {
-        searchInput.value = '';
-        currentSearch = '';
-        renderSites();
-    }
+    exitSearch();
 
     activeCategory = categoryId;
     expandedCategory = categoryId === 'all' ? null : categoryId;
     updateSidebarTree();
 
     if (categoryId === 'all') {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: getScrollBehavior() });
     } else {
         const target = document.getElementById(`category-${categoryId}`);
         if (target) {
-            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            target.scrollIntoView({ behavior: getScrollBehavior(), block: 'start' });
         }
     }
 
@@ -367,24 +395,26 @@ function scrollToCategory(categoryId) {
 }
 
 function toggleCategory(categoryId) {
+    exitSearch();
     expandedCategory = expandedCategory === categoryId ? null : categoryId;
     activeCategory = categoryId;
     updateSidebarTree();
 
     const target = document.getElementById(`category-${categoryId}`);
     if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        target.scrollIntoView({ behavior: getScrollBehavior(), block: 'start' });
     }
 }
 
 function scrollToSubcategory(event, categoryId, subcategoryId) {
     event.preventDefault();
+    exitSearch();
     activeCategory = categoryId;
     expandedCategory = categoryId;
     updateSidebarTree(`${categoryId}-${subcategoryId}`);
     const target = document.getElementById(`subcategory-${categoryId}-${subcategoryId}`);
     if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        target.scrollIntoView({ behavior: getScrollBehavior(), block: 'start' });
     }
     closeSidebar();
 }
@@ -409,17 +439,18 @@ function updateSidebarTree(activeSubcategory = '') {
 function openSidebar() {
     sidebar.classList.add('open');
     sidebarOverlay.classList.add('show');
+    sidebarToggle.setAttribute('aria-expanded', 'true');
     document.body.style.overflow = 'hidden';
 }
 
 function closeSidebar() {
     sidebar.classList.remove('open');
     sidebarOverlay.classList.remove('show');
+    sidebarToggle.setAttribute('aria-expanded', 'false');
     document.body.style.overflow = '';
 }
 
 function bindEvents() {
-    let searchTimer;
     searchInput.addEventListener('input', () => {
         clearTimeout(searchTimer);
         searchTimer = setTimeout(handleSearch, 300);
@@ -429,7 +460,7 @@ function bindEvents() {
     sidebarOverlay.addEventListener('click', closeSidebar);
 
     backToTop.addEventListener('click', () => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: getScrollBehavior() });
     });
 
     let scrollTicking = false;
