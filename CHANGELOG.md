@@ -1,8 +1,45 @@
 # 更新日志
 
-> 版本号采用 `YYYY.MM.DD.N` 格式；`N` 表示当天第几次更新。历史条目的日期保持不变。
+> 正式发布版本采用 `vX.Y.Z` 格式；早期开发记录采用 `YYYY.MM.DD.N` 格式，`N` 表示当天第几次更新。历史条目的日期保持不变。
 
-## [v1.0.1] - 待发布
+## [v1.1.0] - 2026-06-05
+
+### 数据与站点整理
+
+- 🧹 删除已确认失效或过期的站点入口：FreewareFiles、Gen-2、Google Code Jam、GitHub Releases、Funimation、Pleasant AI、Poj
+- 🧭 修正 PuTTY 入口为 `https://putty.software/`
+- 🧭 更新 WeChat Mini Program 官方文档入口为 `https://developers.weixin.qq.com/miniprogram/dev/framework/`
+- 🧭 更新 Redis Cloud 官方入口为 `https://redis.io/cloud/`
+- 🧭 更新慧言AI可访问入口为 `https://huiyan-ai.cn/`
+- 🧭 更新 Microsoft Copilot 官方入口为 `https://copilot.microsoft.com/`
+- 🧭 更新 Taro 官方文档入口为 `https://docs.taro.zone/docs/`
+- 📊 网站总数更新为 `988` 个，一级分类保持 `12` 个
+
+### 图标资源修复
+
+- 🖼️ 修正或补入可确认的官方图标：DeepSeek、O3DE、大麦、Binance、IMDb、中国知网、Maven、IP Location、CyberChef、FullStory
+- 🧹 清理错误灰色字母 / 数字占位图
+- ✦ 对无法可靠确认官方图标的站点使用默认四角星图标
+- ✦ Redis Cloud、慧言AI、Copilot 和 Taro 当前使用默认四角星图标
+- ✅ 当前本地 favicon 文件为 `923` 个，默认四角星图标站点为 `38` 个，缺失 favicon 引用为 `0`
+
+### 搜索体验增强
+
+- 🔍 保留原有名称、描述、标签搜索能力
+- 🌐 新增域名、完整 URL 与深层 URL 搜索，并支持主域名匹配对应子域名
+- 🏷️ 新增 `B站`、`哔哩哔哩`、`深度求索` 等明确中文别名
+- 🔗 新增通过 `?q=` 保存与恢复搜索状态
+- ⌨️ 增加中文 IME composition 输入保护
+
+### 本地维护与验收
+
+- 🧪 新增 `scripts/preview-server.js`，用于本地静态预览与自定义 404 验收
+- ✅ 新增 `scripts/check-data.js` 和 `scripts/check-favicons.js`，用于只读一致性检查
+- 📱 修复移动端点击一级分类后侧边栏未自动关闭，导致遮罩与展开状态残留的问题
+
+---
+
+## [v1.0.1] - 2026-06-01
 
 ### 安全与稳定性修复
 

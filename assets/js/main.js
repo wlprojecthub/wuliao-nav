@@ -14,6 +14,7 @@ let activeCategory = 'all';
 let currentSearch = '';
 let expandedCategory = null;
 let searchTimer;
+let isComposingSearch = false;
 
 // 编辑精选用于突出各分类内更常用、稳定且有代表性的站点。
 // 数据表中的原始位置同时作为完整的人工质量排序，覆盖未单独精选的站点。
@@ -80,6 +81,7 @@ function exitSearch() {
     const hadSearch = Boolean(currentSearch || searchInput.value);
     searchInput.value = '';
     currentSearch = '';
+    updateSearchQueryInUrl('');
     if (hadSearch) {
         renderSites();
     }
@@ -87,7 +89,7 @@ function exitSearch() {
 
 function init() {
     renderSidebar();
-    renderSites();
+    restoreSearchFromUrl();
     bindEvents();
 }
 
@@ -295,7 +297,7 @@ function createHero(resultCount) {
 
 function createSiteCard(site) {
     const safeUrl = sanitizeUrl(site.url);
-    const faviconUrl = getFaviconUrl(site.url);
+    const faviconUrl = getFaviconUrl(site);
     const safeName = escapeHtml(site.name);
     const safeDesc = escapeHtml(site.description);
     const firstChar = escapeHtml(site.name.charAt(0).toUpperCase());
@@ -326,9 +328,13 @@ function createSiteCard(site) {
     </a>`;
 }
 
-function getFaviconUrl(url) {
+function getFaviconUrl(site) {
+    if (site.icon === 'default') {
+        return 'assets/img/default-icon.png?v=608d62088fc4';
+    }
+
     try {
-        const domain = new URL(url).hostname;
+        const domain = new URL(site.url).hostname;
         if (domain === 'cloud.hosthatch.com') {
             return 'assets/img/default-icon.png?v=608d62088fc4';
         }
@@ -338,9 +344,15 @@ function getFaviconUrl(url) {
     }
 }
 
-function handleSearch() {
-    const keyword = searchInput.value.trim().toLowerCase();
+function handleSearch(options = {}) {
+    const { updateUrl = true } = options;
+    const rawSearch = searchInput.value;
+    const keyword = normalizeSearchInput(rawSearch);
     currentSearch = keyword;
+
+    if (updateUrl) {
+        updateSearchQueryInUrl(rawSearch);
+    }
 
     if (!keyword) {
         renderSites();
@@ -353,13 +365,94 @@ function handleSearch() {
         const searchableText = [
             site.name,
             site.description,
-            ...(site.tags || [])
+            ...(site.tags || []),
+            ...(site.aliases || [])
         ].join(' ').toLowerCase();
 
-        return searchTerms.every(term => searchableText.includes(term));
+        return searchTerms.every(term =>
+            searchableText.includes(term) || siteUrlMatchesSearch(site, term)
+        );
     });
 
     renderSites(filteredSites);
+}
+
+function normalizeSearchInput(value) {
+    return String(value || '').normalize('NFKC').trim().toLowerCase();
+}
+
+function getSearchQueryFromUrl() {
+    try {
+        return new URL(window.location.href).searchParams.get('q') || '';
+    } catch (e) {
+        return '';
+    }
+}
+
+function updateSearchQueryInUrl(value) {
+    if (!window.history || !window.location) return;
+
+    try {
+        const url = new URL(window.location.href);
+        const rawValue = String(value || '').trim();
+        if (normalizeSearchInput(rawValue)) {
+            url.searchParams.set('q', rawValue);
+        } else {
+            url.searchParams.delete('q');
+        }
+        window.history.replaceState(null, '', url);
+    } catch (e) {
+        // Search must keep working even if URL state cannot be updated.
+    }
+}
+
+function restoreSearchFromUrl() {
+    searchInput.value = getSearchQueryFromUrl();
+    handleSearch({ updateUrl: false });
+}
+
+function normalizeHostname(hostname) {
+    return String(hostname || '')
+        .normalize('NFKC')
+        .trim()
+        .toLowerCase()
+        .replace(/\.$/, '')
+        .replace(/^www\./, '');
+}
+
+function getInputHostname(value) {
+    const normalizedValue = normalizeSearchInput(value).replace(/\/+$/, '');
+    if (!normalizedValue || /\s/.test(normalizedValue)) return '';
+
+    const candidates = [normalizedValue];
+    if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(normalizedValue)) {
+        candidates.push(`https://${normalizedValue}`);
+    }
+
+    for (const candidate of candidates) {
+        try {
+            const parsed = new URL(candidate);
+            if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                return normalizeHostname(parsed.hostname);
+            }
+        } catch (e) {
+            // Continue with the next candidate; plain names are handled elsewhere.
+        }
+    }
+
+    return '';
+}
+
+function siteUrlMatchesSearch(site, term) {
+    const inputHostname = getInputHostname(term);
+    if (!inputHostname || !inputHostname.includes('.')) return false;
+
+    try {
+        const siteHostname = normalizeHostname(new URL(site.url).hostname);
+        return siteHostname === inputHostname || siteHostname.endsWith(`.${inputHostname}`);
+    } catch (e) {
+        return false;
+    }
 }
 
 function highlightText(text, keyword) {
@@ -404,6 +497,8 @@ function toggleCategory(categoryId) {
     if (target) {
         target.scrollIntoView({ behavior: getScrollBehavior(), block: 'start' });
     }
+
+    closeSidebar();
 }
 
 function scrollToSubcategory(event, categoryId, subcategoryId) {
@@ -451,9 +546,21 @@ function closeSidebar() {
 }
 
 function bindEvents() {
-    searchInput.addEventListener('input', () => {
+    searchInput.addEventListener('compositionstart', () => {
+        isComposingSearch = true;
         clearTimeout(searchTimer);
-        searchTimer = setTimeout(handleSearch, 300);
+    });
+
+    searchInput.addEventListener('compositionend', () => {
+        isComposingSearch = false;
+        clearTimeout(searchTimer);
+        handleSearch();
+    });
+
+    searchInput.addEventListener('input', (event) => {
+        if (isComposingSearch || event.isComposing) return;
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => handleSearch(), 300);
     });
 
     sidebarToggle.addEventListener('click', openSidebar);
@@ -478,6 +585,8 @@ function bindEvents() {
             });
         }
     });
+
+    window.addEventListener('popstate', restoreSearchFromUrl);
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {

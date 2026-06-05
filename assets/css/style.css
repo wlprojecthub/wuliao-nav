@@ -1228,7 +1228,7 @@ body::after {
 
 .site-card {
     min-height: 74px;
-    gap: 13px;
+    gap: 10px;
     padding: 13px 14px;
     border-color: rgba(255, 255, 255, 0.9);
     border-radius: 17px;
@@ -1283,13 +1283,9 @@ body::after {
 
 .site-card.highlight,
 .site-card.risk-warning {
-    padding-right: 88px;
+    padding-right: 14px;
     border-left-width: 1px;
     background: rgba(255, 255, 255, 0.72);
-}
-
-.site-card.risk-warning {
-    padding-right: 146px;
 }
 
 .site-card.highlight {
@@ -1335,6 +1331,14 @@ body::after {
 .card-name {
     color: #574b68;
     font-size: 14px;
+}
+
+.site-card.highlight .card-name {
+    padding-right: 44px;
+}
+
+.site-card.risk-warning .card-name {
+    padding-right: 108px;
 }
 
 .card-desc {
@@ -1507,6 +1511,12 @@ body::after {
     .site-card {
         min-height: 68px;
         padding: 11px 12px;
+        gap: 10px;
+    }
+
+    .site-card.highlight,
+    .site-card.risk-warning {
+        padding-right: 12px;
     }
 }
 
